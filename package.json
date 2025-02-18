@@ -1,20 +1,20 @@
 {
   "name": "highscore-api",
   "version": "1.0.0",
-  "description": "Firebase highscore API",
-  "main": "api/index.js",
+  "description": "Firebase highscore API for Vercel serverless functions",
   "scripts": {
-    "start": "node api/index.js",
-    "dev": "nodemon api/index.js"
+    "start": "vercel dev",
+    "dev": "vercel dev",
+    "deploy": "vercel deploy --prod"
   },
   "dependencies": {
     "express": "^4.18.2",
     "body-parser": "^1.20.2",
-    "firebase-admin": "^11.10.1",
-    "serverless-http": "^3.2.0"
+    "firebase-admin": "^11.10.1"
   },
   "devDependencies": {
-    "nodemon": "^3.0.1"
+    "nodemon": "^3.0.1",
+    "vercel": "^32.5.0"
   },
   "engines": {
     "node": ">=16.0.0"
