@@ -5,33 +5,63 @@ const admin = require('firebase-admin');
 const serverless = require('serverless-http');
 
 // Initialize Firebase Admin SDK with environment variables or service account
+// Lazy loading to prevent cold start issues
 let serviceAccount;
-try {
-  // Try to use environment variables first
-  if (process.env.FIREBASE_SERVICE_ACCOUNT) {
-    serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-  } else {
-    // Fall back to local file (not recommended for production)
-    serviceAccount = require('../serviceAccountKey.json');
+
+function getServiceAccount() {
+  if (!serviceAccount) {
+    try {
+      // Try to use environment variables first
+      if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+        serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+      } else {
+        // Fall back to local file (not recommended for production)
+        serviceAccount = require('../serviceAccountKey.json');
+      }
+    } catch (error) {
+      console.error('Error loading Firebase credentials:', error);
+      throw new Error(`Failed to load Firebase credentials: ${error.message}`);
+    }
   }
-} catch (error) {
-  console.error('Error loading Firebase credentials:', error);
+  return serviceAccount;
 }
 
-// Initialize Firebase only once
+// Initialize Firebase only once - with lazy loading
 let firebaseApp;
-if (!admin.apps.length) {
-  firebaseApp = admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-    databaseURL: process.env.FIREBASE_DATABASE_URL || 'https://highscore-api-default-rtdb.europe-west1.firebasedatabase.app/'
-  });
-} else {
-  firebaseApp = admin.app();
-}
+let db;
 
-const db = admin.database();
+// Helper function to initialize Firebase only when needed
+function getFirebaseDb() {
+  if (!admin.apps.length) {
+    const credentials = getServiceAccount();
+    firebaseApp = admin.initializeApp({
+      credential: admin.credential.cert(credentials),
+      databaseURL: process.env.FIREBASE_DATABASE_URL || 'https://highscore-api-default-rtdb.europe-west1.firebasedatabase.app/'
+    });
+  } else {
+    firebaseApp = admin.app();
+  }
+  
+  if (!db) {
+    db = admin.database();
+  }
+  
+  return db;
+}
 const app = express();
 app.use(bodyParser.json());
+
+// Timeout middleware
+app.use((req, res, next) => {
+  // Set a timeout for all requests (10 seconds)
+  req.setTimeout(10000, () => {
+    res.status(503).json({
+      error: 'Request timeout',
+      message: 'The request is taking too long to process.'
+    });
+  });
+  next();
+});
 
 // Test endpoint
 app.get('/api/test', (req, res) => {
@@ -41,6 +71,7 @@ app.get('/api/test', (req, res) => {
 // Test database connection
 app.get('/api/test-db', async (req, res) => {
   try {
+    const db = getFirebaseDb();
     const testRef = db.ref('test');
     await testRef.set({ message: 'Firebase is working!', timestamp: Date.now() });
     res.status(200).json({ message: 'Firebase connection successful.' });
@@ -69,6 +100,7 @@ app.post('/api/save-score', async (req, res) => {
   }
 
   try {
+    const db = getFirebaseDb();
     const userRef = db.ref('scores').child(address);
     const snapshot = await userRef.once('value');
     const existingScore = snapshot.val();
@@ -100,6 +132,7 @@ app.post('/api/save-score', async (req, res) => {
 app.get('/api/top-users', async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 100;
+    const db = getFirebaseDb();
     const scoresRef = db.ref('scores');
     const snapshot = await scoresRef.orderByValue().limitToLast(limit).once('value');
     const scores = snapshot.val();
