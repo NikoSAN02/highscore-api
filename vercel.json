@@ -8,10 +8,21 @@
       "maxDuration": 10
     }
   },
-  "routes": [
-    { "src": "/api/test", "dest": "/api/test.js" },
-    { "src": "/api/test-db", "dest": "/api/test-db.js" },
-    { "src": "/api/save-score", "methods": ["POST"], "dest": "/api/save-score.js" },
-    { "src": "/api/top-users", "dest": "/api/top-users.js" }
+  "rewrites": [
+    { "source": "/api/test", "destination": "/api/test.js" },
+    { "source": "/api/test-db", "destination": "/api/test-db.js" },
+    { "source": "/api/save-score", "destination": "/api/save-score.js" },
+    { "source": "/api/top-users", "destination": "/api/top-users.js" }
+  ],
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        { "key": "Access-Control-Allow-Credentials", "value": "true" },
+        { "key": "Access-Control-Allow-Origin", "value": "*" },
+        { "key": "Access-Control-Allow-Methods", "value": "GET,OPTIONS,PATCH,DELETE,POST,PUT" },
+        { "key": "Access-Control-Allow-Headers", "value": "X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization" }
+      ]
+    }
   ]
 }
